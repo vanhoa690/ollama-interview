@@ -73,11 +73,15 @@ export async function getQuestions(req, res) {
 }
 
 export const getQuestionsByCategory = async (req, res) => {
-  const { categoryId } = req.query;
+  try {
+    const { categoryId } = req.params;
 
-  const questions = await Question.find({ categoryId });
+    const questions = await Question.find({ categoryId });
 
-  res.json(questions);
+    res.json(questions);
+  } catch (error) {
+    return res.json({ error: error.message });
+  }
 };
 
 export async function deleteQuestion(req, res) {
