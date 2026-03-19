@@ -23,10 +23,31 @@ export const createQuestion = async (req, res) => {
   }
 };
 
-export const getQuestions = async (req, res) => {
+export async function getQuestions(req, res) {
+  try {
+    const questions = await Question.find();
+    return res.json(questions);
+  } catch (error) {
+    return res.json({ error: error.message });
+  }
+}
+
+export const getQuestionsByCategory = async (req, res) => {
   const { categoryId } = req.query;
 
   const questions = await Question.find({ categoryId });
 
   res.json(questions);
 };
+
+export async function deleteQuestion(req, res) {
+  try {
+    const question = await Question.findByIdAndDelete(req.params.id);
+    if (!question) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+    return res.json({ success: true });
+  } catch (error) {
+    return res.json({ error: error.message });
+  }
+}

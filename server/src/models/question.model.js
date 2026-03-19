@@ -6,6 +6,7 @@ const questionSchema = new mongoose.Schema(
 
     options: [
       {
+        _id: false,
         text: String,
         isCorrect: Boolean,
       },

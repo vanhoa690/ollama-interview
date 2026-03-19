@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 
 import authRouter from "./routers/auth";
 import categoryRouter from "./routers/category.route";
+import questionRouter from "./routers/question.route";
 
 const app = express();
 
@@ -14,7 +15,7 @@ mongoose
   .catch((err) => console.error("Could not connect to MongoDB:", err));
 
 app.use("/api/categories", categoryRouter);
-
+app.use("/api/questions", questionRouter);
 app.use("/api/auth", authRouter);
 
 app.listen(3000, () => {
