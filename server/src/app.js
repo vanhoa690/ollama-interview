@@ -1,22 +1,19 @@
 import express from "express";
 import mongoose from "mongoose";
-import postRouter from "./routers/post";
-import authorRouter from "./routers/author";
 
 import authRouter from "./routers/auth";
+import categoryRouter from "./routers/category.route";
 
 const app = express();
 
 app.use(express.json());
 
 mongoose
-  .connect("mongodb://localhost:27017/nodejs")
+  .connect("mongodb://localhost:27017/interviews")
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("Could not connect to MongoDB:", err));
 
-app.use("/api/posts", postRouter);
-
-app.use("/api/authors", authorRouter);
+app.use("/api/categories", categoryRouter);
 
 app.use("/api/auth", authRouter);
 
