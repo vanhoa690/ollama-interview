@@ -1,5 +1,45 @@
 import Question from "../models/question.model";
 
+export const createManyQuestions = async (req, res) => {
+  try {
+    const { questions, categoryId } = req.body;
+
+    if (!questions || !Array.isArray(questions)) {
+      return res.status(400).json({
+        message: "questions phải là array",
+      });
+    }
+
+    const formattedQuestions = [];
+
+    for (const q of questions) {
+      const correctCount = q.options.filter((o) => o.isCorrect).length;
+
+      if (correctCount !== 1) {
+        return res.status(400).json({
+          message: `Câu "${q.content}" phải có đúng 1 đáp án đúng`,
+        });
+      }
+
+      formattedQuestions.push({
+        content: q.content,
+        options: q.options,
+        categoryId,
+      });
+    }
+
+    const result = await Question.insertMany(formattedQuestions);
+
+    res.json({
+      message: "Tạo nhiều câu hỏi thành công",
+      count: result.length,
+      data: result,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 export const createQuestion = async (req, res) => {
   try {
     const { content, options, categoryId } = req.body;
