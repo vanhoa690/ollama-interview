@@ -2,10 +2,17 @@ import { useState } from "react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
-import { Link } from "react-router-dom";
-import { Card, List, Spin, Empty } from "antd";
+import { Link, Route, Routes } from "react-router-dom";
+import { Card, List, Spin, Empty, Button, Avatar } from "antd";
+import LoginPage from "./pages/LoginPage";
+import { useMe } from "./hooks/useMe";
+import { useLogout } from "./hooks/useLogout";
 
 function App() {
+  const { data } = useMe();
+  const logout = useLogout();
+
+  const user = data?.user;
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // 👉 Fetch categories
@@ -46,13 +53,25 @@ function App() {
             <Link to="/list" className="hover:text-gray-200">
               Danh sách
             </Link>
-            <Link to="/add" className="hover:text-gray-200">
-              Thêm mới
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <Avatar src={user.avatar} className="w-8 h-8 rounded-full" />
+                <span>{user.name}</span>
+                <Button danger onClick={logout} type="primary">
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <Link to="/login">
+                <Button type="primary">Login</Button>
+              </Link>
+            )}
           </div>
         </div>
       </nav>
-
+      <Routes>
+        <Route path="/login" element={<LoginPage />}></Route>
+      </Routes>
       {/* MAIN */}
       <div className="max-w-6xl mx-auto mt-10 px-4">
         <h1 className="text-3xl font-bold mb-6 text-center">
