@@ -17,13 +17,9 @@ authRouter.get(
   "/google/callback",
   passport.authenticate("google", { session: false }),
   (req, res) => {
-    const token = jwt.sign(
-      { id: req.user._id },
-      process.env.JWT_SECRET || "secret123",
-      {
-        expiresIn: "7d",
-      },
-    );
+    const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     // 👉 redirect về frontend (React)
     const redirectUrl = `http://localhost:5173/login?token=${token}`;

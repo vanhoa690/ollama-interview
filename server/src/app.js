@@ -1,16 +1,12 @@
+import "dotenv/config";
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
-
+import session from "express-session";
+import passport from "passport";
 import authRouter from "./routers/auth.route";
 import categoryRouter from "./routers/category.route";
 import questionRouter from "./routers/question.route";
-import dotenv from "dotenv";
-
-import session from "express-session";
-
-import passport from "passport";
-dotenv.config();
 import "./config/passport";
 const app = express();
 
