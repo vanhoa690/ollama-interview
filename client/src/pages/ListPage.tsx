@@ -1,14 +1,15 @@
 import { useState } from "react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
-import { Card, List, Spin, Empty, Radio, Button, message } from "antd";
+import { Card, List, Spin, Empty, Radio, Button, message, Tag } from "antd";
 
 const ListPage = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [result, setResult] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // 👉 Fetch categories
+  // 👉 categories
   const { data: categories = [], isLoading: loadingCategories } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
@@ -17,7 +18,7 @@ const ListPage = () => {
     },
   });
 
-  // 👉 Fetch questions theo category
+  // 👉 questions
   const { data: questions = [], isLoading: loadingQuestions } = useQuery({
     queryKey: ["questions", selectedCategory],
     queryFn: async () => {
@@ -32,28 +33,15 @@ const ListPage = () => {
 
   // 👉 chọn đáp án
   const handleSelect = (questionId: string, optionIndex: number) => {
+    if (result) return; // ❌ đã submit thì không cho chọn lại
     setAnswers((prev) => ({
       ...prev,
       [questionId]: optionIndex,
     }));
   };
 
-  // 👉 tính điểm FE (optional)
-  const calculateScore = () => {
-    let score = 0;
-
-    questions.forEach((q: any) => {
-      const correctIndex = q.options.findIndex((o: any) => o.isCorrect);
-      if (answers[q._id] === correctIndex) score++;
-    });
-
-    return score;
-  };
-
   // 👉 submit
   const handleSubmit = async () => {
-    if (questions.length === 0) return;
-
     if (Object.keys(answers).length !== questions.length) {
       return message.warning("Bạn chưa chọn hết câu hỏi!");
     }
@@ -66,18 +54,29 @@ const ListPage = () => {
         selectedIndex: answers[q._id],
       }));
 
-      await axios.post("http://localhost:3000/api/submit", {
-        answers: payload,
-      });
+      const res = await axios.post(
+        "http://localhost:3000/api/questions/submit",
+        {
+          userId: "69bc0894f6acf95c5e255a1e",
+          answers: payload,
+        },
+      );
 
-      const score = calculateScore();
+      setResult(res.data);
 
-      message.success(`Nộp bài thành công! Điểm: ${score}/${questions.length}`);
+      message.success("Nộp bài thành công!");
     } catch (error) {
       message.error("Lỗi khi submit!");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // 👉 check đúng sai
+  const checkCorrect = (questionId: string) => {
+    if (!result) return null;
+    const found = result.answers.find((a: any) => a.questionId === questionId);
+    return found?.isCorrect;
   };
 
   return (
@@ -99,63 +98,96 @@ const ListPage = () => {
               hoverable
               onClick={() => {
                 setSelectedCategory(cat._id);
-                setAnswers({}); // reset khi đổi category
+                setAnswers({});
+                setResult(null);
               }}
-              className={`cursor-pointer text-center transition ${
+              className={`cursor-pointer text-center ${
                 selectedCategory === cat._id ? "border-blue-500 shadow-lg" : ""
               }`}
             >
-              <h3 className="font-semibold">{cat.name}</h3>
+              <h3>{cat.name}</h3>
             </Card>
           ))}
         </div>
       )}
 
-      {/* QUESTIONS */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Danh sách câu hỏi</h2>
+      {/* RESULT */}
+      {result && (
+        <div className="mb-6 text-center">
+          <Tag color="blue" className="text-lg px-4 py-2">
+            Điểm: {result.score} / {result.total}
+          </Tag>
+        </div>
+      )}
 
-        {!selectedCategory ? (
-          <Empty description="Chọn danh mục để làm bài" />
-        ) : loadingQuestions ? (
-          <div className="text-center">
-            <Spin size="large" />
-          </div>
-        ) : questions.length === 0 ? (
-          <Empty description="Không có câu hỏi" />
-        ) : (
-          <>
-            <List
-              bordered
-              dataSource={questions}
-              renderItem={(q: any, index) => (
+      {/* QUESTIONS */}
+      {!selectedCategory ? (
+        <Empty description="Chọn danh mục để làm bài" />
+      ) : loadingQuestions ? (
+        <div className="text-center">
+          <Spin size="large" />
+        </div>
+      ) : questions.length === 0 ? (
+        <Empty description="Không có câu hỏi" />
+      ) : (
+        <>
+          <List
+            bordered
+            dataSource={questions}
+            renderItem={(q: any, index) => {
+              const isCorrect = checkCorrect(q._id);
+
+              return (
                 <List.Item>
                   <div className="w-full">
-                    <p className="font-medium">
-                      {index + 1}. {q.content}
-                    </p>
+                    <div className="flex justify-between items-center">
+                      <p className="font-medium">
+                        {index + 1}. {q.content}
+                      </p>
+
+                      {result && (
+                        <Tag color={isCorrect ? "green" : "red"}>
+                          {isCorrect ? "Đúng" : "Sai"}
+                        </Tag>
+                      )}
+                    </div>
 
                     <Radio.Group
                       className="mt-3 flex flex-col gap-2"
                       onChange={(e) => handleSelect(q._id, e.target.value)}
                       value={answers[q._id]}
                     >
-                      {q.options.map((opt: any, i: number) => (
-                        <Radio
-                          key={i}
-                          value={i}
-                          className="p-2 border rounded hover:bg-gray-50 transition"
-                        >
-                          {opt.text}
-                        </Radio>
-                      ))}
+                      {q.options.map((opt: any, i: number) => {
+                        const selected = answers[q._id] === i;
+
+                        let className = "p-2 border rounded transition";
+
+                        if (result && selected) {
+                          className += isCorrect
+                            ? " bg-green-100 border-green-500"
+                            : " bg-red-100 border-red-500";
+                        }
+
+                        return (
+                          <Radio
+                            key={i}
+                            value={i}
+                            disabled={!!result}
+                            className={className}
+                          >
+                            {opt.text}
+                          </Radio>
+                        );
+                      })}
                     </Radio.Group>
                   </div>
                 </List.Item>
-              )}
-            />
+              );
+            }}
+          />
 
-            {/* SUBMIT */}
+          {/* SUBMIT */}
+          {!result && (
             <div className="mt-6 text-center">
               <Button
                 type="primary"
@@ -166,9 +198,9 @@ const ListPage = () => {
                 Nộp bài
               </Button>
             </div>
-          </>
-        )}
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

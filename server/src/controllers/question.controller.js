@@ -1,4 +1,5 @@
 import Question from "../models/question.model";
+import Result from "../models/result.model";
 
 export const createManyQuestions = async (req, res) => {
   try {
@@ -95,3 +96,39 @@ export async function deleteQuestion(req, res) {
     return res.json({ error: error.message });
   }
 }
+
+export const submitQuiz = async (req, res) => {
+  try {
+    const { userId, answers } = req.body;
+
+    let score = 0;
+    const resultAnswers = [];
+
+    for (const ans of answers) {
+      const question = await Question.findById(ans.questionId);
+
+      const correctIndex = question.options.findIndex((o) => o.isCorrect);
+
+      const isCorrect = correctIndex === ans.selectedIndex;
+
+      if (isCorrect) score++;
+
+      resultAnswers.push({
+        questionId: ans.questionId,
+        selectedOptionIndex: ans.selectedIndex,
+        isCorrect,
+      });
+    }
+
+    const result = await Result.create({
+      userId,
+      answers: resultAnswers,
+      score,
+      total: answers.length,
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

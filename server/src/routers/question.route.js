@@ -6,6 +6,7 @@ import {
   deleteQuestion,
   getQuestions,
   getQuestionsByCategory,
+  submitQuiz,
 } from "../controllers/question.controller";
 // import { checkAuth } from "../middlewares/checkAuth";
 
@@ -18,5 +19,6 @@ questionRouter.post("/bulk", createManyQuestions);
 questionRouter.get("/", getQuestions);
 questionRouter.get("/category/:categoryId", getQuestionsByCategory);
 questionRouter.delete("/:id", deleteQuestion);
+questionRouter.post("/submit", submitQuiz);
 
 export default questionRouter;
