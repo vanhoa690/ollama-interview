@@ -17,6 +17,11 @@ const resultSchema = new mongoose.Schema(
 
     score: Number,
     total: Number,
+    aiAnalysis: {
+      level: String,
+      feedback: String,
+      suggestions: String,
+    },
   },
   {
     timestamps: true,

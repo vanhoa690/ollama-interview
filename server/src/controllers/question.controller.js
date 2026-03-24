@@ -1,5 +1,6 @@
 import Question from "../models/question.model";
 import Result from "../models/result.model";
+import { analyzeQuizWithAI } from "../services/ollama.service";
 
 export const createManyQuestions = async (req, res) => {
   try {
@@ -99,36 +100,93 @@ export async function deleteQuestion(req, res) {
 
 export const submitQuiz = async (req, res) => {
   try {
-    const { userId, answers } = req.body;
+    const { userId, answers, useAI = false } = req.body;
+
+    if (!userId || !answers || !Array.isArray(answers)) {
+      return res.status(400).json({
+        error: "Invalid payload",
+      });
+    }
 
     let score = 0;
-    const resultAnswers = [];
 
-    for (const ans of answers) {
-      const question = await Question.findById(ans.questionId);
+    // 🚀 Lấy toàn bộ question song song
+    const questions = await Promise.all(
+      answers.map((ans) => Question.findById(ans.questionId)),
+    );
+
+    const resultAnswers = [];
+    const aiAnswers = [];
+
+    for (let i = 0; i < answers.length; i++) {
+      const ans = answers[i];
+      const question = questions[i];
+
+      if (!question) continue;
 
       const correctIndex = question.options.findIndex((o) => o.isCorrect);
-
       const isCorrect = correctIndex === ans.selectedIndex;
 
       if (isCorrect) score++;
 
+      // 👉 Data lưu DB (gọn nhẹ)
       resultAnswers.push({
         questionId: ans.questionId,
         selectedOptionIndex: ans.selectedIndex,
         isCorrect,
       });
+
+      // 👉 Data gửi AI (CHI TIẾT)
+      aiAnswers.push({
+        question: question.content, // hoặc question.title tùy schema
+        options: question.options.map((o) => o.text),
+        correctAnswer: question.options[correctIndex]?.text,
+        userAnswer: question.options[ans.selectedIndex]?.text,
+        isCorrect,
+        topic: question.topic || "", // nếu có
+      });
     }
 
+    // 👉 Lưu DB trước
     const result = await Result.create({
       userId,
       answers: resultAnswers,
       score,
-      total: answers.length,
+      total: resultAnswers.length,
+      aiAnalysis: null,
     });
 
-    res.json(result);
+    // 🚀 TRẢ VỀ NGAY (không chờ AI)
+    res.json({
+      message: "Submit success",
+      data: result,
+    });
+
+    // 🧠 CHẠY AI BACKGROUND
+    if (useAI) {
+      (async () => {
+        try {
+          const aiAnalysis = await analyzeQuizWithAI({
+            score,
+            total: resultAnswers.length,
+            answers: aiAnswers, // 🔥 dùng data đầy đủ
+          });
+
+          if (aiAnalysis) {
+            await Result.findByIdAndUpdate(result._id, {
+              aiAnalysis,
+            });
+          }
+        } catch (err) {
+          console.error("AI background error:", err.message);
+        }
+      })();
+    }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Submit quiz error:", err);
+
+    res.status(500).json({
+      error: err.message,
+    });
   }
 };

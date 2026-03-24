@@ -8,6 +8,7 @@ import authRouter from "./routers/auth.route";
 import categoryRouter from "./routers/category.route";
 import questionRouter from "./routers/question.route";
 import "./config/passport";
+import resultRouter from "./routers/result.route";
 const app = express();
 
 app.use(cors());
@@ -33,6 +34,7 @@ mongoose
 app.use("/api/categories", categoryRouter);
 app.use("/api/questions", questionRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/results", resultRouter);
 
 app.listen(3000, () => {
   console.log(`Server is running on port http://localhost:3000`);

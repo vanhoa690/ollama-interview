@@ -1,13 +1,28 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
-import { Card, List, Spin, Empty, Radio, Button, message, Tag } from "antd";
+import {
+  Card,
+  List,
+  Spin,
+  Empty,
+  Radio,
+  Button,
+  message,
+  Tag,
+  Switch,
+} from "antd";
 
 const ListPage = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [result, setResult] = useState<any>(null);
+  const [resultId, setResultId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // 👉 AI
+  const [useAI, setUseAI] = useState(true);
+  const [checkingAI, setCheckingAI] = useState(false);
 
   // 👉 categories
   const { data: categories = [], isLoading: loadingCategories } = useQuery({
@@ -31,9 +46,41 @@ const ListPage = () => {
     enabled: !!selectedCategory,
   });
 
+  // 👉 polling result (AI)
+  const { data: aiResult } = useQuery({
+    queryKey: ["result", resultId],
+    queryFn: async () => {
+      const res = await axios.get(
+        `http://localhost:3000/api/results/${resultId}`,
+      );
+      return res.data;
+    },
+    enabled: !!resultId && useAI,
+    refetchInterval: (data) => {
+      if (data?.aiAnalysis) return false; // stop khi có AI
+      return 2000;
+    },
+  });
+
+  // 👉 sync khi có AI
+  useEffect(() => {
+    if (aiResult?.aiAnalysis) {
+      setResult(aiResult);
+      setCheckingAI(false);
+      message.success("AI đã phân tích xong!");
+    }
+  }, [aiResult]);
+
+  // 👉 bật loading AI
+  useEffect(() => {
+    if (resultId && useAI) {
+      setCheckingAI(true);
+    }
+  }, [resultId, useAI]);
+
   // 👉 chọn đáp án
   const handleSelect = (questionId: string, optionIndex: number) => {
-    if (result) return; // ❌ đã submit thì không cho chọn lại
+    if (result) return;
     setAnswers((prev) => ({
       ...prev,
       [questionId]: optionIndex,
@@ -59,10 +106,14 @@ const ListPage = () => {
         {
           userId: "69bc0894f6acf95c5e255a1e",
           answers: payload,
+          useAI,
         },
       );
 
-      setResult(res.data);
+      const resultData = res.data.data;
+
+      setResult(resultData);
+      setResultId(resultData._id);
 
       message.success("Nộp bài thành công!");
     } catch (error) {
@@ -100,6 +151,7 @@ const ListPage = () => {
                 setSelectedCategory(cat._id);
                 setAnswers({});
                 setResult(null);
+                setResultId(null);
               }}
               className={`cursor-pointer text-center ${
                 selectedCategory === cat._id ? "border-blue-500 shadow-lg" : ""
@@ -117,6 +169,35 @@ const ListPage = () => {
           <Tag color="blue" className="text-lg px-4 py-2">
             Điểm: {result.score} / {result.total}
           </Tag>
+        </div>
+      )}
+
+      {/* AI RESULT */}
+      {useAI && result && (
+        <div className="mb-6">
+          {checkingAI ? (
+            <div className="text-center">
+              <Spin />
+              <p className="mt-2">AI đang phân tích kết quả...</p>
+            </div>
+          ) : result?.aiAnalysis ? (
+            <Card>
+              <h3 className="text-lg font-semibold mb-2">🧠 Đánh giá từ AI</h3>
+
+              <p>
+                <b>Level:</b>{" "}
+                <Tag color="purple">{result.aiAnalysis.level}</Tag>
+              </p>
+
+              <p className="mt-2">
+                <b>Feedback:</b> {result.aiAnalysis.feedback}
+              </p>
+
+              <p className="mt-2">
+                <b>Gợi ý:</b> {result.aiAnalysis.suggestions}
+              </p>
+            </Card>
+          ) : null}
         </div>
       )}
 
@@ -189,6 +270,11 @@ const ListPage = () => {
           {/* SUBMIT */}
           {!result && (
             <div className="mt-6 text-center">
+              <div className="mb-4 flex items-center justify-center gap-3">
+                <span>Dùng AI phân tích</span>
+                <Switch checked={useAI} onChange={setUseAI} />
+              </div>
+
               <Button
                 type="primary"
                 size="large"
